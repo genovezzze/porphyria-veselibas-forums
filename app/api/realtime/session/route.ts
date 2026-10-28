@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { buildSystemPrompt } from "@/lib/agent";
 import { VOICE_ID, LIMITS } from "@/lib/config";
 import { rateLimit, clientKey, checkOrigin } from "@/lib/rate-limit";
+import { REALTIME_TOOL_DEFS } from "@/lib/tools";
 
 export const runtime = "nodejs";
 
@@ -63,6 +64,8 @@ export async function POST(req: Request) {
             output: { voice: VOICE_ID },
           },
           max_output_tokens: 400,
+          tools: REALTIME_TOOL_DEFS,
+          tool_choice: "auto",
         },
       }),
     });

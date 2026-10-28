@@ -5,15 +5,29 @@ import {
   updatePreferencesSchema,
   selectDemoOptionSchema,
   findVentspilsCareSchema,
+  REALTIME_TOOL_DEFS,
 } from "@/lib/tools";
 import { buildBusyIntervals, buildDemoSlots } from "@/lib/fixtures";
 import type { Preferences } from "@/lib/types";
 
 const TODAY = "2026-11-04";
 const base: Preferences = { timeOfDay: "any", weekday: null, concern: null };
-const ctx = { preferences: base, busy: buildBusyIntervals(TODAY), today: TODAY };
+const ctx = {
+  preferences: base,
+  busy: buildBusyIntervals(TODAY),
+  today: TODAY,
+  calendarConnected: true,
+};
 
 describe("argument validation", () => {
+  it("exposes real care search to voice but not demo booking tools", () => {
+    const names = REALTIME_TOOL_DEFS.map((tool) => tool.name);
+    expect(names).toContain("find_ventspils_care");
+    expect(names).toContain("update_preferences");
+    expect(names).not.toContain("find_demo_slots");
+    expect(names).not.toContain("select_demo_option");
+  });
+
   it("accepts valid preference args", () => {
     expect(updatePreferencesSchema.safeParse({ timeOfDay: "after-work" }).success).toBe(true);
     expect(updatePreferencesSchema.safeParse({ weekday: null }).success).toBe(true);
@@ -101,5 +115,15 @@ describe("executeTool", () => {
     expect(res.careMatches?.[0].providerName).toContain("Ventspils");
     expect(res.careMatches?.[0].bookingUrl).toContain("piearsta.lv");
     expect(res.careMatches?.[0].suggestedTimes.length).toBeGreaterThan(0);
+  });
+
+  it("does not suggest times without a current Google Calendar connection", () => {
+    const res = executeTool(
+      "find_ventspils_care",
+      { location: "Ventspils", specialty: "kardiologs" },
+      { ...ctx, busy: [], calendarConnected: false }
+    );
+    expect(res.ok).toBe(false);
+    expect(res.careMatches).toBeUndefined();
   });
 });

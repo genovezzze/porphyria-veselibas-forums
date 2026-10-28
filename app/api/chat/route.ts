@@ -17,7 +17,6 @@ import type {
 } from "@/lib/types";
 import { LIMITS } from "@/lib/config";
 import { rateLimit, clientKey, checkOrigin } from "@/lib/rate-limit";
-import { buildBusyIntervals } from "@/lib/fixtures";
 
 export const runtime = "nodejs";
 
@@ -44,6 +43,7 @@ const bodySchema = z.object({
     .max(200)
     .optional(),
   today: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  calendarConnected: z.boolean().default(false),
 });
 
 interface ChatResponse {
@@ -95,11 +95,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const busy: BusyInterval[] = body.busy ?? buildBusyIntervals(body.today);
+  const busy: BusyInterval[] = body.calendarConnected ? body.busy ?? [] : [];
   const ctx: ToolContext = {
     preferences: body.preferences,
     busy,
     today: body.today,
+    calendarConnected: body.calendarConnected,
   };
 
   const apiKey = process.env.OPENAI_API_KEY;

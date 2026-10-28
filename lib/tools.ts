@@ -150,10 +150,22 @@ export const TOOL_DEFS = [
   },
 ];
 
+// Realtime uses the same function schema without the Chat Completions
+// `function` wrapper. Demo-only tools are intentionally unavailable to voice.
+export const REALTIME_TOOL_DEFS = TOOL_DEFS.filter(({ function: fn }) =>
+  ["find_ventspils_care", "update_preferences"].includes(fn.name)
+).map(({ function: fn }) => ({
+  type: "function" as const,
+  name: fn.name,
+  description: fn.description,
+  parameters: fn.parameters,
+}));
+
 export interface ToolContext {
   preferences: Preferences;
   busy: BusyInterval[];
   today: string;
+  calendarConnected: boolean;
 }
 
 export interface ToolResult {
@@ -193,14 +205,18 @@ export function executeTool(
       const parsed = updatePreferencesSchema.safeParse(rawArgs);
       if (!parsed.success) return { ok: false, error: "Invalid arguments." };
       const preferences = mergePreferences(ctx.preferences, parsed.data);
-      const options = findDemoSlots(
-        buildDemoSlots(ctx.today),
-        ctx.busy,
-        preferences
-      );
+      const options = ctx.calendarConnected
+        ? findDemoSlots(buildDemoSlots(ctx.today), ctx.busy, preferences)
+        : undefined;
       return { ok: true, preferences, options };
     }
     case "find_demo_slots": {
+      if (!ctx.calendarConnected) {
+        return {
+          ok: false,
+          error: "Connect Google Calendar before searching for free times.",
+        };
+      }
       const options = findDemoSlots(
         buildDemoSlots(ctx.today),
         ctx.busy,
@@ -220,6 +236,13 @@ export function executeTool(
     case "find_ventspils_care": {
       const parsed = findVentspilsCareSchema.safeParse(rawArgs);
       if (!parsed.success) return { ok: false, error: "Invalid arguments." };
+      if (!ctx.calendarConnected) {
+        return {
+          ok: false,
+          error:
+            "Google Calendar is not connected or its current availability could not be loaded. Ask the user to connect or refresh Google Calendar before suggesting times.",
+        };
+      }
       const careMatches = findVentspilsCare({
         ...parsed.data,
         busy: ctx.busy,

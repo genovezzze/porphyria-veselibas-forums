@@ -8,7 +8,7 @@ import type {
   MatchedOption,
   TimeOfDay,
 } from "./types";
-import { buildBusyIntervals, buildDemoSlots } from "./fixtures";
+import { buildDemoSlots } from "./fixtures";
 import { findDemoSlots, decorate } from "./slots";
 import { rigaToday } from "./date";
 
@@ -26,6 +26,8 @@ interface DemoState {
   today: string;
   preferences: Preferences;
   busy: BusyInterval[];
+  calendarConnected: boolean;
+  careMatches: import("./types").CareMatch[];
   plan: PlanItem[];
   messages: ChatMessage[];
 }
@@ -41,7 +43,9 @@ function initialState(): DemoState {
   return {
     today,
     preferences: DEFAULT_PREFS,
-    busy: buildBusyIntervals(today),
+    busy: [],
+    calendarConnected: false,
+    careMatches: [],
     plan: [],
     messages: [],
   };
@@ -54,6 +58,8 @@ interface StoreCtx extends DemoState {
   setPreferences: (p: Preferences) => void;
   setTimeOfDay: (t: TimeOfDay) => void;
   setBusy: (b: BusyInterval[]) => void;
+  setCalendarConnected: (connected: boolean) => void;
+  setCareMatches: (matches: import("./types").CareMatch[]) => void;
   addMessage: (m: Omit<ChatMessage, "id">) => void;
   // Insert a message with a known id, or replace its content if it already exists.
   upsertMessage: (m: ChatMessage) => void;
@@ -83,7 +89,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         if (parsed.today !== rigaToday()) {
           setState(initialState());
         } else {
-          setState(parsed);
+          // Calendar availability is session data. Never restore an old or
+          // demo schedule and present it as current Google Calendar data.
+          setState({
+            ...parsed,
+            busy: [],
+            calendarConnected: false,
+            careMatches: [],
+          });
         }
       }
     } catch {
@@ -114,6 +127,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setTimeOfDay: (timeOfDay) =>
       setState((s) => ({ ...s, preferences: { ...s.preferences, timeOfDay } })),
     setBusy: (busy) => setState((s) => ({ ...s, busy })),
+    setCalendarConnected: (calendarConnected) =>
+      setState((s) => ({ ...s, calendarConnected })),
+    setCareMatches: (careMatches) => setState((s) => ({ ...s, careMatches })),
     addMessage: (m) =>
       setState((s) => ({
         ...s,
@@ -135,7 +151,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         ...s,
         messages: s.messages.filter((x) => x.id !== id),
       })),
-    clearConversation: () => setState((s) => ({ ...s, messages: [] })),
+    clearConversation: () =>
+      setState((s) => ({ ...s, messages: [], careMatches: [] })),
     savePlan: (slotId) =>
       setState((s) =>
         s.plan.some((p) => p.slotId === slotId)

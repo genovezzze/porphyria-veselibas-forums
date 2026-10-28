@@ -13,7 +13,8 @@ import {
 import { useDemo } from "@/lib/store";
 import { LIMITS, PRODUCT_NAME } from "@/lib/config";
 import { useTypewriter } from "@/lib/use-typewriter";
-import type { CareMatch } from "@/lib/types";
+import { addDays } from "@/lib/date";
+import { PiearstaAssistDialog } from "@/components/PiearstaAssistDialog";
 
 // Hero title: the last two words ("balss aģents") get the gradient effect.
 const TITLE_WORDS = PRODUCT_NAME.split(" ");
@@ -44,10 +45,10 @@ const STARTERS: {
 export function Chat({ onOptions }: { onOptions: () => void }) {
   const demo = useDemo();
   const [input, setInput] = React.useState("");
-  const [careMatches, setCareMatches] = React.useState<CareMatch[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [mode, setMode] = React.useState<"openai" | "scripted" | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [bookingMatch, setBookingMatch] = React.useState<(typeof demo.careMatches)[number] | null>(null);
   const endRef = React.useRef<HTMLDivElement | null>(null);
   // Typing prompts only on the empty start screen, not once a conversation exists.
   const typed = useTypewriter(PROMPTS, input.length === 0 && demo.messages.length === 0);
@@ -57,7 +58,7 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
   }, [demo.messages.length]);
 
   React.useEffect(() => {
-    if (demo.messages.length === 0) setCareMatches([]);
+    if (demo.messages.length === 0) demo.setCareMatches([]);
   }, [demo.messages.length]);
 
   async function send(text: string) {
@@ -68,17 +69,23 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
     demo.addMessage({ role: "user", content, channel: "text" });
     setBusy(true);
 
-    let currentBusy = demo.busy;
+    let currentBusy: typeof demo.busy = [];
+    let calendarConnected = false;
     try {
-      const monthStart = `${demo.today.slice(0, 7)}-01`;
-      const [year, month] = monthStart.split("-").map(Number);
-      const monthEnd = `${month === 12 ? year + 1 : year}-${String(
-        month === 12 ? 1 : month + 1
-      ).padStart(2, "0")}-01`;
+      const statusResponse = await fetch("/api/google-calendar/status", {
+        cache: "no-store",
+      });
+      const status = statusResponse.ok ? await statusResponse.json() : null;
+      if (!status?.connected || status?.needsReconnect) {
+        demo.setBusy([]);
+        demo.setCalendarConnected(false);
+      } else {
+      const rangeStart = demo.today;
+      const rangeEnd = addDays(demo.today, 32);
       const calendarResponse = await fetch("/api/google-calendar/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startDate: monthStart, endDate: monthEnd }),
+        body: JSON.stringify({ startDate: rangeStart, endDate: rangeEnd }),
       });
       if (calendarResponse.ok) {
         const calendarData = await calendarResponse.json();
@@ -90,9 +97,18 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
           })
         );
         demo.setBusy(currentBusy);
+        calendarConnected = true;
+        demo.setCalendarConnected(true);
+      } else {
+        demo.setBusy([]);
+        demo.setCalendarConnected(false);
+      }
       }
     } catch {
-      // Keep the last known calendar state when Google Calendar is unavailable.
+      // Never reuse stale or demo availability when Google Calendar is unavailable.
+      currentBusy = [];
+      demo.setBusy([]);
+      demo.setCalendarConnected(false);
     }
 
     const history = [
@@ -108,6 +124,7 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
           messages: history,
           preferences: demo.preferences,
           busy: currentBusy,
+          calendarConnected,
           today: demo.today,
         }),
       });
@@ -115,7 +132,7 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
       const data = await res.json();
       setMode(data.mode);
       if (data.preferences) demo.setPreferences(data.preferences);
-      if (Array.isArray(data.careMatches)) setCareMatches(data.careMatches);
+      if (Array.isArray(data.careMatches)) demo.setCareMatches(data.careMatches);
       demo.addMessage({ role: "assistant", content: data.reply, channel: "text" });
       if (data.options && data.options.length >= 0) onOptions();
     } catch {
@@ -270,9 +287,9 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
             </div>
           </div>
         )}
-        {careMatches.length > 0 && (
+        {demo.careMatches.length > 0 && (
           <div className="space-y-2 pt-1">
-            {careMatches.map((match) => (
+            {demo.careMatches.map((match) => (
               <div
                 key={match.id}
                 className="rounded-2xl border border-black/10 bg-white p-3.5 text-black shadow-sm"
@@ -313,6 +330,13 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
                   >
                     E-pieraksts <ExternalLink size={13} />
                   </a>
+                  <button
+                    type="button"
+                    onClick={() => setBookingMatch(match)}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-2xl border border-black/10 bg-white px-3 text-[12px] font-medium text-black hover:bg-black/5"
+                  >
+                    Sagatavot pierakstu
+                  </button>
                   <a
                     href={match.directionsUrl}
                     target="_blank"
@@ -338,6 +362,12 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
       {error && <p className="mt-3 text-[15px] text-amber-400">{error}</p>}
 
       <div className="mt-3">{composer}</div>
+      {bookingMatch && (
+        <PiearstaAssistDialog
+          match={bookingMatch}
+          onClose={() => setBookingMatch(null)}
+        />
+      )}
     </div>
   );
 }

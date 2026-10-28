@@ -20,7 +20,8 @@ const STATE_LABEL: Record<VoiceState, string> = {
 };
 
 export function VoicePanel() {
-  const { addMessage, upsertMessage, removeMessage } = useDemo();
+  const demo = useDemo();
+  const { addMessage, upsertMessage, removeMessage } = demo;
   const [state, setState] = React.useState<VoiceState>("off");
   const [error, setError] = React.useState<string | null>(null);
 
@@ -31,6 +32,7 @@ export function VoicePanel() {
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   // Accumulate transcript deltas per response/item before committing to chat.
   const partials = React.useRef<Record<string, { role: "user" | "assistant"; text: string }>>({});
+  const handledCalls = React.useRef(new Set<string>());
 
   const cleanup = React.useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -46,6 +48,7 @@ export function VoicePanel() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     partials.current = {};
+    handledCalls.current.clear();
   }, []);
 
   const endConversation = React.useCallback(() => {
@@ -61,6 +64,58 @@ export function VoicePanel() {
       addMessage({ role: p.role, content: p.text.trim(), channel: "voice" });
     }
     delete partials.current[id];
+  }
+
+  async function runToolCall(evt: any) {
+    const callId = evt.call_id || evt.item?.call_id;
+    const name = evt.name || evt.item?.name;
+    const rawArguments = evt.arguments || evt.item?.arguments || "{}";
+    if (!callId || !name || handledCalls.current.has(callId)) return;
+    handledCalls.current.add(callId);
+
+    let args: unknown = {};
+    try {
+      args = JSON.parse(rawArguments);
+    } catch {
+      args = {};
+    }
+
+    let output: unknown = { ok: false, error: "Tool request failed." };
+    try {
+      const res = await fetch("/api/realtime/tool", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          arguments: args,
+          today: demo.today,
+          preferences: demo.preferences,
+        }),
+      });
+      output = await res.json();
+      const result = output as {
+        preferences?: typeof demo.preferences;
+        careMatches?: typeof demo.careMatches;
+      };
+      if (result.preferences) demo.setPreferences(result.preferences);
+      if (Array.isArray(result.careMatches)) demo.setCareMatches(result.careMatches);
+    } catch {
+      output = { ok: false, error: "Tool request failed." };
+    }
+
+    const dc = dcRef.current;
+    if (!dc || dc.readyState !== "open") return;
+    dc.send(
+      JSON.stringify({
+        type: "conversation.item.create",
+        item: {
+          type: "function_call_output",
+          call_id: callId,
+          output: JSON.stringify(output),
+        },
+      })
+    );
+    dc.send(JSON.stringify({ type: "response.create" }));
   }
 
   function handleEvent(evt: any) {
@@ -107,6 +162,12 @@ export function VoicePanel() {
       }
       case "response.done":
         setState("listening");
+        break;
+      case "response.function_call_arguments.done":
+        void runToolCall(evt);
+        break;
+      case "response.output_item.done":
+        if (evt.item?.type === "function_call") void runToolCall(evt);
         break;
       case "error":
         setError("Balss pakalpojums ziņoja par kļūdu.");
