@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   ArrowUp,
-  Paperclip,
   HelpCircle,
   HeartPulse,
   MapPin,
@@ -161,13 +160,7 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
           placeholder={empty ? typed + "|" : "Raksti ziņu…"}
           className="block w-full resize-none bg-transparent px-4 pt-3.5 pb-3 text-[15px] text-black placeholder:text-neutral-500 focus:outline-none"
         />
-        <div className="flex items-center justify-between gap-2 bg-panel px-3 py-2">
-          <span
-            className="inline-flex items-center gap-2 text-[14px] text-black"
-            title="Pielikumi nav pieejami demo"
-          >
-            <Paperclip size={16} />
-          </span>
+        <div className="flex items-center justify-end gap-2 bg-panel px-3 py-2">
           <div className="flex items-center gap-2.5">
             <span className="text-[13px] tabular-nums text-black">
               {input.length}/{LIMITS.maxMessageChars}
