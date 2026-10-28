@@ -192,7 +192,7 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
         {/* Purple glow */}
         <div className="pointer-events-none absolute left-1/2 top-[22%] h-64 w-[36rem] max-w-[90%] -translate-x-1/2 rounded-full bg-accent/25 blur-[90px]" />
 
-        <div className="relative w-full max-w-2xl text-center">
+        <div className="relative w-full max-w-2xl -translate-y-10 text-center">
           <h1 className="text-4xl font-bold tracking-tight text-black sm:text-5xl">
             {TITLE_HEAD && <>{TITLE_HEAD} </>}
             <span className="text-gradient-flow">
