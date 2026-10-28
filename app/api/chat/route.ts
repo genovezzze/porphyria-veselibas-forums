@@ -55,6 +55,30 @@ interface ChatResponse {
   careMatches: CareMatch[] | null;
 }
 
+function detectCareSearch(messages: Array<{ role: "user" | "assistant"; content: string }>) {
+  const userMessages = messages.filter((message) => message.role === "user");
+  const combined = userMessages.map((message) => message.content).join(" ").toLocaleLowerCase();
+  const specialties: Array<[RegExp, string]> = [
+    [/kardiolog|cardiolog|кардиолог/u, "kardiologs"],
+    [/otolaring|\blor\b|\bлор\b/u, "otolaringologs"],
+    [/neirolog|neurolog|невролог/u, "neirologs"],
+    [/oftalm|acu ār|eye doctor|офтальмолог/u, "oftalmologs"],
+    [/traumat|ortop|orthop|травматолог|ортопед/u, "traumatologs-ortopēds"],
+    [/dermat|дерматолог/u, "dermatologs"],
+    [/ginek|gynec|гинеколог/u, "ginekologs"],
+    [/endokrin|эндокрин/u, "endokrinologs"],
+    [/fizioter|physio|физиотерап/u, "fizioterapeits"],
+    [/urolog|уролог/u, "urologs"],
+    [/ķirurg|surgeon|хирург/u, "ķirurgs"],
+  ];
+  const specialty = specialties.find(([pattern]) => pattern.test(combined))?.[1];
+  const locationMessage = [...userMessages]
+    .reverse()
+    .find((message) => /ventspil|вентспил|lv-?360\d/u.test(message.content.toLocaleLowerCase()));
+  if (!specialty || !locationMessage) return null;
+  return { specialty, location: locationMessage.content.slice(0, 160) };
+}
+
 export async function POST(req: Request) {
   if (!checkOrigin(req)) {
     return NextResponse.json({ error: "Bad origin." }, { status: 403 });
@@ -149,8 +173,9 @@ async function runOpenAI(
   let options: MatchedOption[] | null = null;
   let selectedSlotId: string | null = null;
   let careMatches: CareMatch[] | null = null;
+  const detectedCareSearch = detectCareSearch(body.messages);
 
-  async function call(): Promise<any> {
+  async function call(forceCareTool = false): Promise<any> {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -161,15 +186,32 @@ async function runOpenAI(
         model,
         messages,
         tools: TOOL_DEFS,
+        ...(forceCareTool
+          ? {
+              tool_choice: {
+                type: "function",
+                function: { name: "find_ventspils_care" },
+              },
+            }
+          : {}),
         temperature: 0.4,
         max_tokens: 300,
       }),
     });
-    if (!res.ok) throw new Error("openai http " + res.status);
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => ({}));
+      console.error(
+        "chat: openai http",
+        res.status,
+        errorBody?.error?.code || "unknown",
+        errorBody?.error?.param || ""
+      );
+      throw new Error("openai http " + res.status);
+    }
     return res.json();
   }
 
-  let data = await call();
+  let data = await call(Boolean(detectedCareSearch));
   let choice = data.choices?.[0];
 
   // One round of tool execution is enough for this demo flow.

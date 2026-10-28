@@ -7,9 +7,7 @@ import {
   HelpCircle,
   HeartPulse,
   MapPin,
-  Stethoscope,
   ExternalLink,
-  CalendarClock,
   Navigation,
 } from "lucide-react";
 import { useDemo } from "@/lib/store";
@@ -29,6 +27,7 @@ const PROMPTS = [
   "Kas tevi visvairāk satrauc procedūrā?",
   "Kad tev būtu ērti aiziet?",
   "Ko tu gribētu uzzināt par skrīningu?",
+  "Palīdzi atrast ārstu Ventspilī",
 ] as const;
 
 const STARTERS: {
@@ -39,13 +38,12 @@ const STARTERS: {
 }[] = [
   { text: "Es jūtos labi. Vai man tiešām vajag šo skrīningu?", label: "Vai man tas vajadzīgs?", icon: HelpCircle, color: "text-accent" },
   { text: "Es mazliet baidos no procedūras.", label: "Baidos no procedūras", icon: HeartPulse, color: "text-accent" },
+  { text: "Man vajag pierakstu pie ārsta Ventspilī.", label: "Atrast ārstu Ventspilī", icon: MapPin, color: "text-accent" },
 ];
 
 export function Chat({ onOptions }: { onOptions: () => void }) {
   const demo = useDemo();
   const [input, setInput] = React.useState("");
-  const [location, setLocation] = React.useState("Ventspils");
-  const [specialty, setSpecialty] = React.useState("");
   const [careMatches, setCareMatches] = React.useState<CareMatch[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [mode, setMode] = React.useState<"openai" | "scripted" | null>(null);
@@ -134,13 +132,6 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
 
   const empty = demo.messages.length === 0;
 
-  function searchCare() {
-    if (!location.trim() || !specialty.trim() || busy) return;
-    void send(
-      `Es atrodos: ${location.trim()}. Man vajadzīgs speciālists vai pakalpojums: ${specialty.trim()}. Atrodi piemērotu vietu Ventspilī un salīdzini ar manu Google Calendar.`
-    );
-  }
-
   function formatSuggestedTime(value: string): string {
     const [date, time] = value.split("T");
     const [, month, day] = date.split("-");
@@ -209,45 +200,10 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
             </span>
           </h1>
           <p className="mx-auto mt-3 text-[17px] sm:whitespace-nowrap text-black">
-            Pārrunā savu skrīningu, bez spiediena. Vienkārši sāc rakstīt zemāk.
+            Pastāsti, kas tev vajadzīgs. Asistents sarunā precizēs vietu un ārstu.
           </p>
 
-          <div className="mt-7 rounded-2xl border border-black/[0.08] bg-white p-3 text-left shadow-[0_10px_30px_rgba(0,0,0,0.07)]">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <label className="relative block">
-                <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
-                <span className="sr-only">Kur tu atrodies?</span>
-                <input
-                  value={location}
-                  onChange={(event) => setLocation(event.target.value)}
-                  placeholder="Adrese vai pasta indekss"
-                  className="h-11 w-full rounded-xl border border-black/10 bg-white pl-9 pr-3 text-[14px] text-black outline-none focus:border-accent"
-                />
-              </label>
-              <label className="relative block">
-                <Stethoscope className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
-                <span className="sr-only">Kāds ārsts vajadzīgs?</span>
-                <input
-                  value={specialty}
-                  onChange={(event) => setSpecialty(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") searchCare();
-                  }}
-                  placeholder="Piemēram, kardiologs"
-                  className="h-11 w-full rounded-xl border border-black/10 bg-white pl-9 pr-3 text-[14px] text-black outline-none focus:border-accent"
-                />
-              </label>
-            </div>
-            <button
-              onClick={searchCare}
-              disabled={!location.trim() || !specialty.trim() || busy}
-              className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-black/10 bg-white px-4 text-[14px] font-medium text-black transition-colors hover:bg-black/5 disabled:opacity-40"
-            >
-              <CalendarClock size={16} /> Atrast laiku Ventspilī
-            </button>
-          </div>
-
-          <div className="mt-4">{composer}</div>
+          <div className="mt-8">{composer}</div>
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             {STARTERS.map((s) => (
