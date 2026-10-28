@@ -235,9 +235,6 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
             ))}
           </div>
 
-          <p className="mt-6 text-[13px] text-black">
-            Ieraksti netiek saglabāti ārpus šīs sesijas · fiksē tikai tavas vēlmes
-          </p>
         </div>
       </div>
     );
