@@ -105,7 +105,13 @@ export function VoicePanel() {
         careMatches?: typeof demo.careMatches;
       };
       if (result.preferences) demo.setPreferences(result.preferences);
-      if (Array.isArray(result.careMatches)) demo.setCareMatches(result.careMatches);
+      if (Array.isArray(result.careMatches)) {
+        demo.setCareMatches(result.careMatches);
+        if (result.careMatches.length > 0) {
+          demo.setBookingStage("provider_search");
+          demo.setReferralStatus("booking");
+        }
+      }
     } catch {
       output = { ok: false, error: "Tool request failed." };
     }
@@ -187,7 +193,14 @@ export function VoicePanel() {
     setState("connecting");
     try {
       // 1. Mint an ephemeral session on the server.
-      const sessionRes = await fetch("/api/realtime/session", { method: "POST" });
+      const sessionRes = await fetch("/api/realtime/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          referral: demo.referral,
+          bookingStage: demo.bookingStage,
+        }),
+      });
       if (!sessionRes.ok) {
         const data = await sessionRes.json().catch(() => ({}));
         setState("unavailable");
@@ -242,6 +255,17 @@ export function VoicePanel() {
 
       const dc = pc.createDataChannel("oai-events");
       dcRef.current = dc;
+      dc.onopen = () => {
+        dc.send(
+          JSON.stringify({
+            type: "response.create",
+            response: {
+              instructions:
+                "Sāc sarunu proaktīvi un īsi. Izmanto aktīvā nosūtījuma kontekstu. Ja saruna vēl nav sākta, sasveicinies un pajautā par galveno bažu; ja tā jau sākta, turpini no pašreizējā posma.",
+            },
+          })
+        );
+      };
       dc.onmessage = (e) => {
         try {
           handleEvent(JSON.parse(e.data));

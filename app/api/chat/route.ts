@@ -14,6 +14,8 @@ import type {
   BusyInterval,
   MatchedOption,
   CareMatch,
+  Referral,
+  BookingStage,
 } from "@/lib/types";
 import { LIMITS } from "@/lib/config";
 import { rateLimit, clientKey, checkOrigin } from "@/lib/rate-limit";
@@ -44,6 +46,29 @@ const bodySchema = z.object({
     .optional(),
   today: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   calendarConnected: z.boolean().default(false),
+  referral: z
+    .object({
+      id: z.string().max(80),
+      patientName: z.string().max(120),
+      examination: z.string().max(160),
+      city: z.string().max(120),
+      issuedBy: z.string().max(120),
+      issuedAt: z.string().max(40),
+      status: z.enum(["new", "contacted", "booking", "confirmed"]),
+    })
+    .nullable()
+    .optional(),
+  bookingStage: z
+    .enum([
+      "referral_received",
+      "concern_identification",
+      "search_consent",
+      "calendar_check",
+      "provider_search",
+      "confirmation",
+      "completed",
+    ])
+    .optional(),
 });
 
 interface ChatResponse {
@@ -55,7 +80,17 @@ interface ChatResponse {
   careMatches: CareMatch[] | null;
 }
 
-function detectCareSearch(messages: Array<{ role: "user" | "assistant"; content: string }>) {
+function detectCareSearch(
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+  referral?: Referral | null,
+  bookingStage?: BookingStage
+) {
+  if (
+    referral &&
+    (bookingStage === "calendar_check" || bookingStage === "provider_search")
+  ) {
+    return { specialty: referral.examination, location: referral.city };
+  }
   const userMessages = messages.filter((message) => message.role === "user");
   const combined = userMessages.map((message) => message.content).join(" ").toLocaleLowerCase();
   const specialties: Array<[RegExp, string]> = [
@@ -166,7 +201,13 @@ async function runOpenAI(
   };
 
   const messages: OAMessage[] = [
-    { role: "system", content: buildSystemPrompt() },
+    {
+      role: "system",
+      content: buildSystemPrompt({
+        referral: body.referral || null,
+        bookingStage: body.bookingStage || null,
+      }),
+    },
     ...body.messages.map((m) => ({ role: m.role, content: m.content })),
   ];
 
@@ -174,7 +215,11 @@ async function runOpenAI(
   let options: MatchedOption[] | null = null;
   let selectedSlotId: string | null = null;
   let careMatches: CareMatch[] | null = null;
-  const detectedCareSearch = detectCareSearch(body.messages);
+  const detectedCareSearch = detectCareSearch(
+    body.messages,
+    body.referral || null,
+    body.bookingStage
+  );
 
   async function call(forceCareTool = false): Promise<any> {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {

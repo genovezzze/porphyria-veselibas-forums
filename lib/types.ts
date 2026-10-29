@@ -77,6 +77,38 @@ export interface CareMatch {
   availabilityNote: string;
 }
 
+export type BookingStage =
+  | "referral_received"
+  | "concern_identification"
+  | "search_consent"
+  | "calendar_check"
+  | "provider_search"
+  | "confirmation"
+  | "completed";
+
+export interface Referral {
+  id: string;
+  patientName: string;
+  examination: string;
+  city: string;
+  issuedBy: string;
+  issuedAt: string;
+  status: "new" | "contacted" | "booking" | "confirmed";
+}
+
+export interface ConfirmedBooking {
+  id: string;
+  referralId: string;
+  providerName: string;
+  examination: string;
+  address: string;
+  start: string;
+  end: string;
+  confirmedAt: string;
+  calendarEventId?: string;
+  calendarEventUrl?: string;
+}
+
 export interface PlanItem {
   slotId: string;
   savedAt: string; // ISO timestamp

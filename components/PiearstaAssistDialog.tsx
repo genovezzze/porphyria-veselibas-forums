@@ -7,17 +7,24 @@ import type { CareMatch } from "@/lib/types";
 export function PiearstaAssistDialog({
   match,
   onClose,
+  patientName = "",
+  onConfirm,
 }: {
   match: CareMatch;
   onClose: () => void;
+  patientName?: string;
+  onConfirm: (confirmedStart: string) => Promise<void>;
 }) {
   const [draft, setDraft] = React.useState({
-    patientName: "",
+    patientName,
     personalCode: "",
     phone: "",
     email: "",
   });
   const [copied, setCopied] = React.useState(false);
+  const [confirmedStart, setConfirmedStart] = React.useState("");
+  const [confirming, setConfirming] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const copySummary = async () => {
     const value = [
@@ -70,6 +77,21 @@ export function PiearstaAssistDialog({
           Pārlūks neļauj šai platformai automātiski ievadīt datus citā domēnā. Nokopē sagatavotos datus, atver Piearsta.lv un pats apstiprini izvēlēto laiku.
         </p>
 
+        <label className="mt-4 block text-sm font-medium">
+          Piearsta.lv apstiprinātais laiks
+          <input
+            type="datetime-local"
+            value={confirmedStart}
+            onChange={(event) => setConfirmedStart(event.target.value)}
+            className="mt-1 block h-10 w-full rounded-xl border border-black/10 px-3 font-normal outline-none focus:border-[#1a73e8] focus:ring-2 focus:ring-[#1a73e8]/15"
+          />
+          <span className="mt-1 block text-xs font-normal text-neutral-500">
+            Ievadi tikai laiku, kuru Piearsta.lv tiešām apstiprināja.
+          </span>
+        </label>
+
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <button
             type="button"
@@ -87,6 +109,30 @@ export function PiearstaAssistDialog({
           >
             Atvērt Piearsta.lv <ExternalLink size={15} />
           </a>
+          <button
+            type="button"
+            disabled={!confirmedStart || confirming}
+            onClick={async () => {
+              setError(null);
+              setConfirming(true);
+              try {
+                await onConfirm(confirmedStart);
+                onClose();
+              } catch (cause) {
+                setError(
+                  cause instanceof Error
+                    ? cause.message
+                    : "Neizdevās saglabāt pierakstu."
+                );
+              } finally {
+                setConfirming(false);
+              }
+            }}
+            className="inline-flex h-10 items-center gap-2 rounded-2xl bg-[#137333] px-4 text-sm font-medium text-white hover:bg-[#0f5d29] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Check size={15} />
+            {confirming ? "Saglabā…" : "Pieraksts apstiprināts"}
+          </button>
         </div>
       </div>
     </div>

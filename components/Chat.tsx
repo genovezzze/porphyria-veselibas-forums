@@ -9,12 +9,15 @@ import {
   MapPin,
   ExternalLink,
   Navigation,
+  CheckCircle2,
+  FileText,
 } from "lucide-react";
 import { useDemo } from "@/lib/store";
 import { LIMITS, PRODUCT_NAME } from "@/lib/config";
 import { useTypewriter } from "@/lib/use-typewriter";
 import { addDays } from "@/lib/date";
 import { PiearstaAssistDialog } from "@/components/PiearstaAssistDialog";
+import type { BookingStage } from "@/lib/types";
 
 // Hero title: the last two words ("balss aģents") get the gradient effect.
 const TITLE_WORDS = PRODUCT_NAME.split(" ");
@@ -54,6 +57,28 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
   const typed = useTypewriter(PROMPTS, input.length === 0 && demo.messages.length === 0);
 
   React.useEffect(() => {
+    if (
+      demo.hydrated &&
+      demo.messages.length === 0 &&
+      demo.referral.status === "new" &&
+      demo.bookingStage === "referral_received"
+    ) {
+      demo.addMessage({
+        role: "assistant",
+        channel: "text",
+        content: `Labdien, ${demo.referral.patientName}! Tavs ${demo.referral.issuedBy} ir izrakstījis nosūtījumu uz ${demo.referral.examination}. Es varu palīdzēt sagatavot pierakstu. Kas tevi visvairāk satrauc — pati pārbaude, iespējamais rezultāts vai laika atrašana?`,
+      });
+      demo.setReferralStatus("contacted");
+      demo.setBookingStage("concern_identification");
+    }
+  }, [
+    demo.hydrated,
+    demo.messages.length,
+    demo.referral.status,
+    demo.bookingStage,
+  ]);
+
+  React.useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [demo.messages.length]);
 
@@ -68,6 +93,12 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
     setInput("");
     demo.addMessage({ role: "user", content, channel: "text" });
     setBusy(true);
+
+    const requestStage = nextBookingStage(demo.bookingStage, content);
+    if (requestStage !== demo.bookingStage) {
+      demo.setBookingStage(requestStage);
+      if (requestStage === "calendar_check") demo.setReferralStatus("booking");
+    }
 
     let currentBusy: typeof demo.busy = [];
     let calendarConnected = false;
@@ -126,13 +157,20 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
           busy: currentBusy,
           calendarConnected,
           today: demo.today,
+          referral: demo.referral,
+          bookingStage: requestStage,
         }),
       });
       if (!res.ok) throw new Error("http " + res.status);
       const data = await res.json();
       setMode(data.mode);
       if (data.preferences) demo.setPreferences(data.preferences);
-      if (Array.isArray(data.careMatches)) demo.setCareMatches(data.careMatches);
+      if (Array.isArray(data.careMatches)) {
+        demo.setCareMatches(data.careMatches);
+        if (data.careMatches.length > 0) {
+          demo.setBookingStage("provider_search");
+        }
+      }
       demo.addMessage({ role: "assistant", content: data.reply, channel: "text" });
       if (data.options && data.options.length >= 0) onOptions();
     } catch {
@@ -153,6 +191,51 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
     const [date, time] = value.split("T");
     const [, month, day] = date.split("-");
     return `${day}.${month}. plkst. ${time}`;
+  }
+
+  async function confirmPiearstaBooking(
+    match: (typeof demo.careMatches)[number],
+    start: string
+  ) {
+    const end = addMinutes(start, 60);
+    const res = await fetch("/api/google-calendar/create-event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        summary: `${demo.referral.examination} · ${match.providerName}`,
+        description:
+          "Lietotājs apstiprināja pierakstu Piearsta.lv. Atgādinājumi: 24 stundas un 2 stundas pirms vizītes.",
+        location: match.address,
+        start,
+        end,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (data?.reconnect) {
+        throw new Error("Atkārtoti pieslēdz Google Calendar sadaļā “Integrācijas”.");
+      }
+      throw new Error(data?.error || "Neizdevās pievienot notikumu kalendāram.");
+    }
+    demo.confirmBooking({
+      id: crypto.randomUUID(),
+      referralId: demo.referral.id,
+      providerName: match.providerName,
+      examination: demo.referral.examination,
+      address: match.address,
+      start,
+      end,
+      confirmedAt: new Date().toISOString(),
+      calendarEventId: data.id,
+      calendarEventUrl: data.htmlLink,
+    });
+    demo.addMessage({
+      role: "assistant",
+      channel: "text",
+      content: `Pieraksts ir apstiprināts un pievienots Google Calendar: ${formatSuggestedTime(
+        start
+      )}. Atgādinājumus saņemsi 24 stundas un 2 stundas pirms vizītes.`,
+    });
   }
 
   const composer = (
@@ -243,7 +326,12 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
   return (
     <div className="mx-auto flex min-h-[68vh] max-h-[86vh] w-full max-w-3xl flex-col rounded-3xl border border-black/[0.08] bg-white p-5 shadow-[0_10px_40px_rgba(0,0,0,0.08)]">
       <div className="mb-3 flex items-center justify-between pl-1">
-        <h2 className="text-xl font-semibold text-black">Saruna</h2>
+        <div>
+          <h2 className="text-xl font-semibold text-black">Saruna</h2>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-600">
+            <FileText size={13} /> {demo.referral.examination} · {demo.referral.city}
+          </p>
+        </div>
         {mode && (
           <span className="text-[13px] text-black">
             {mode === "openai" ? "AI asistents" : "Scenārija demo (nav AI atslēgas)"}
@@ -353,6 +441,27 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
             ))}
           </div>
         )}
+        {demo.confirmedBooking && (
+          <div className="rounded-2xl border border-[#ceead6] bg-[#e6f4ea] p-4 text-[#0f5132]">
+            <div className="flex items-center gap-2 font-semibold">
+              <CheckCircle2 size={18} /> Pieraksts apstiprināts
+            </div>
+            <p className="mt-1 text-sm">
+              {demo.confirmedBooking.providerName} · {formatSuggestedTime(demo.confirmedBooking.start)}
+            </p>
+            <p className="mt-1 text-xs">Pievienots Google Calendar ar diviem atgādinājumiem.</p>
+            {demo.confirmedBooking.calendarEventUrl && (
+              <a
+                href={demo.confirmedBooking.calendarEventUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold underline"
+              >
+                Atvērt Google Calendar <ExternalLink size={12} />
+              </a>
+            )}
+          </div>
+        )}
         <div ref={endRef} />
       </div>
 
@@ -362,9 +471,29 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
       {bookingMatch && (
         <PiearstaAssistDialog
           match={bookingMatch}
+          patientName={demo.referral.patientName}
+          onConfirm={(start) => confirmPiearstaBooking(bookingMatch, start)}
           onClose={() => setBookingMatch(null)}
         />
       )}
     </div>
   );
+}
+
+function nextBookingStage(stage: BookingStage, content: string): BookingStage {
+  if (stage === "referral_received") return "concern_identification";
+  if (stage === "concern_identification") return "search_consent";
+  if (
+    stage === "search_consent" &&
+    /\b(jā|lūdzu|vēlos|meklē|palīdzi|piekrītu)\b/iu.test(content)
+  ) {
+    return "calendar_check";
+  }
+  return stage;
+}
+
+function addMinutes(value: string, minutes: number): string {
+  const date = new Date(`${value}:00Z`);
+  date.setUTCMinutes(date.getUTCMinutes() + minutes);
+  return date.toISOString().slice(0, 16);
 }

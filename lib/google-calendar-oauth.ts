@@ -39,6 +39,11 @@ export interface GoogleCalendarEvent {
   allDay: boolean;
 }
 
+export interface CreatedGoogleCalendarEvent {
+  id: string;
+  htmlLink?: string;
+}
+
 export class GoogleOAuthError extends Error {
   constructor(public readonly code: string) {
     super(`Google OAuth failed: ${code}`);
@@ -381,6 +386,51 @@ export async function createGoogleTestEvents(
     }
   }
   return samples.length;
+}
+
+export async function createGoogleBookingEvent(
+  accessToken: string,
+  event: {
+    summary: string;
+    description: string;
+    location: string;
+    start: string;
+    end: string;
+  }
+): Promise<CreatedGoogleCalendarEvent> {
+  const response = await fetch(
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        summary: event.summary,
+        description: event.description,
+        location: event.location,
+        start: { dateTime: `${event.start}:00`, timeZone: TIMEZONE },
+        end: { dateTime: `${event.end}:00`, timeZone: TIMEZONE },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: "popup", minutes: 24 * 60 },
+            { method: "popup", minutes: 2 * 60 },
+          ],
+        },
+        extendedProperties: {
+          private: { porphyriaBooking: "confirmed" },
+        },
+      }),
+      cache: "no-store",
+    }
+  );
+  const data = await response.json();
+  if (!response.ok || !data.id) {
+    throw new Error("Google Calendar booking event could not be created.");
+  }
+  return { id: String(data.id), htmlLink: data.htmlLink && String(data.htmlLink) };
 }
 
 export async function fetchPrimaryCalendarId(

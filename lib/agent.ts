@@ -1,12 +1,30 @@
 import { PRODUCT_NAME } from "./config";
 import { REFERENCE_NOTES, REFERENCE_REVIEWED_ON } from "./reference-content";
+import type { BookingStage, Referral } from "./types";
 
-export function buildSystemPrompt(): string {
+export function buildSystemPrompt(context?: {
+  referral?: Referral | null;
+  bookingStage?: BookingStage | null;
+}): string {
   const notes = REFERENCE_NOTES.map(
     (note) => `- (${note.topic}) ${note.text} [avots: ${note.source}]`
   ).join("\n");
 
+  const referralContext = context?.referral
+    ? `
+AKTĪVAIS NOSŪTĪJUMS:
+- Pacients: ${context.referral.patientName}
+- Izmeklējums: ${context.referral.examination}
+- Pilsēta: ${context.referral.city}
+- Nosūtīja: ${context.referral.issuedBy}
+- Scenārija posms: ${context.bookingStage || "referral_received"}
+
+Šī informācija jau ir zināma. Nejautā to atkārtoti. Ja posms ir calendar_check vai provider_search, meklē pierakstu, izmantojot nosūtījumā norādīto izmeklējumu un pilsētu.
+`
+    : "";
+
   return `Tu esi veselības pieraksta asistents platformā ${PRODUCT_NAME}.
+${referralContext}
 
 SVARĪGI:
 - Vienmēr atbildi latviešu valodā, arī tad, ja lietotājs raksta citā valodā.

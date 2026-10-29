@@ -4,8 +4,35 @@ import { VOICE_ID, LIMITS } from "@/lib/config";
 import { rateLimit, clientKey, checkOrigin } from "@/lib/rate-limit";
 import { REALTIME_TOOL_DEFS } from "@/lib/tools";
 import { buildRealtimeInputAudioConfig } from "@/lib/realtime-audio";
+import { z } from "zod";
 
 export const runtime = "nodejs";
+
+const contextSchema = z.object({
+  referral: z
+    .object({
+      id: z.string(),
+      patientName: z.string(),
+      examination: z.string(),
+      city: z.string(),
+      issuedBy: z.string(),
+      issuedAt: z.string(),
+      status: z.enum(["new", "contacted", "booking", "confirmed"]),
+    })
+    .nullable()
+    .optional(),
+  bookingStage: z
+    .enum([
+      "referral_received",
+      "concern_identification",
+      "search_consent",
+      "calendar_check",
+      "provider_search",
+      "confirmation",
+      "completed",
+    ])
+    .optional(),
+});
 
 // Mints a short-lived client secret for an OpenAI Realtime WebRTC session.
 // The persistent OPENAI_API_KEY NEVER leaves the server; the browser only
@@ -38,6 +65,7 @@ export async function POST(req: Request) {
   }
 
   const model = process.env.OPENAI_REALTIME_MODEL?.trim() || "gpt-realtime";
+  const context = contextSchema.safeParse(await req.json().catch(() => ({})));
 
   try {
     // Current Realtime API: mint an ephemeral client secret bound to a session
@@ -52,7 +80,14 @@ export async function POST(req: Request) {
         session: {
           type: "realtime",
           model,
-          instructions: buildSystemPrompt(),
+          instructions: buildSystemPrompt(
+            context.success
+              ? {
+                  referral: context.data.referral || null,
+                  bookingStage: context.data.bookingStage || null,
+                }
+              : undefined
+          ),
           audio: {
             // Transcribe the user's speech too, so their turns show in the chat.
             input: buildRealtimeInputAudioConfig(),

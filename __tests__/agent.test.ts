@@ -22,4 +22,23 @@ describe("booking conversation order", () => {
     expect(prompt).toContain("Vai vēlies, lai palīdzu atrast pieraksta laiku?");
     expect(prompt).toContain("Google Calendar un Piearsta.lv");
   });
+
+  it("includes active referral context without asking for known data again", () => {
+    const prompt = buildSystemPrompt({
+      referral: {
+        id: "ref-1",
+        patientName: "Anna Bērziņa",
+        examination: "mamogrāfijas skrīnings",
+        city: "Ventspils",
+        issuedBy: "ģimenes ārsts",
+        issuedAt: "2026-10-29",
+        status: "new",
+      },
+      bookingStage: "calendar_check",
+    });
+    expect(prompt).toContain("AKTĪVAIS NOSŪTĪJUMS");
+    expect(prompt).toContain("mamogrāfijas skrīnings");
+    expect(prompt).toContain("Scenārija posms: calendar_check");
+    expect(prompt).toContain("Nejautā to atkārtoti");
+  });
 });

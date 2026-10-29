@@ -7,6 +7,10 @@ import type {
   PlanItem,
   MatchedOption,
   TimeOfDay,
+  Referral,
+  BookingStage,
+  ConfirmedBooking,
+  CareMatch,
 } from "./types";
 import { buildDemoSlots } from "./fixtures";
 import { findDemoSlots, decorate } from "./slots";
@@ -27,7 +31,10 @@ interface DemoState {
   preferences: Preferences;
   busy: BusyInterval[];
   calendarConnected: boolean;
-  careMatches: import("./types").CareMatch[];
+  careMatches: CareMatch[];
+  referral: Referral;
+  bookingStage: BookingStage;
+  confirmedBooking: ConfirmedBooking | null;
   plan: PlanItem[];
   messages: ChatMessage[];
 }
@@ -46,6 +53,17 @@ function initialState(): DemoState {
     busy: [],
     calendarConnected: false,
     careMatches: [],
+    referral: {
+      id: "ref-mammography-2026",
+      patientName: "Anna Bērziņa",
+      examination: "mamogrāfijas skrīnings",
+      city: "Ventspils",
+      issuedBy: "ģimenes ārsts",
+      issuedAt: today,
+      status: "new",
+    },
+    bookingStage: "referral_received",
+    confirmedBooking: null,
     plan: [],
     messages: [],
   };
@@ -54,12 +72,16 @@ function initialState(): DemoState {
 const STORAGE_KEY = "next-step-demo-v1";
 
 interface StoreCtx extends DemoState {
+  hydrated: boolean;
   options: MatchedOption[];
   setPreferences: (p: Preferences) => void;
   setTimeOfDay: (t: TimeOfDay) => void;
   setBusy: (b: BusyInterval[]) => void;
   setCalendarConnected: (connected: boolean) => void;
-  setCareMatches: (matches: import("./types").CareMatch[]) => void;
+  setCareMatches: (matches: CareMatch[]) => void;
+  setBookingStage: (stage: BookingStage) => void;
+  setReferralStatus: (status: Referral["status"]) => void;
+  confirmBooking: (booking: ConfirmedBooking) => void;
   addMessage: (m: Omit<ChatMessage, "id">) => void;
   // Insert a message with a known id, or replace its content if it already exists.
   upsertMessage: (m: ChatMessage) => void;
@@ -85,6 +107,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as DemoState;
+        const fresh = initialState();
         // Keep the stored demo week fresh if the date rolled over.
         if (parsed.today !== rigaToday()) {
           setState(initialState());
@@ -92,6 +115,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           // Calendar availability is session data. Never restore an old or
           // demo schedule and present it as current Google Calendar data.
           setState({
+            ...fresh,
             ...parsed,
             busy: [],
             calendarConnected: false,
@@ -122,6 +146,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   const api: StoreCtx = {
     ...state,
+    hydrated,
     options,
     setPreferences: (preferences) => setState((s) => ({ ...s, preferences })),
     setTimeOfDay: (timeOfDay) =>
@@ -130,6 +155,20 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setCalendarConnected: (calendarConnected) =>
       setState((s) => ({ ...s, calendarConnected })),
     setCareMatches: (careMatches) => setState((s) => ({ ...s, careMatches })),
+    setBookingStage: (bookingStage) =>
+      setState((s) => ({ ...s, bookingStage })),
+    setReferralStatus: (status) =>
+      setState((s) => ({
+        ...s,
+        referral: { ...s.referral, status },
+      })),
+    confirmBooking: (confirmedBooking) =>
+      setState((s) => ({
+        ...s,
+        confirmedBooking,
+        bookingStage: "completed",
+        referral: { ...s.referral, status: "confirmed" },
+      })),
     addMessage: (m) =>
       setState((s) => ({
         ...s,
@@ -152,7 +191,13 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         messages: s.messages.filter((x) => x.id !== id),
       })),
     clearConversation: () =>
-      setState((s) => ({ ...s, messages: [], careMatches: [] })),
+      setState((s) => ({
+        ...s,
+        messages: [],
+        careMatches: [],
+        bookingStage:
+          s.referral.status === "confirmed" ? "completed" : "referral_received",
+      })),
     savePlan: (slotId) =>
       setState((s) =>
         s.plan.some((p) => p.slotId === slotId)
