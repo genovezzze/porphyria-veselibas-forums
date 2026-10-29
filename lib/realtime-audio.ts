@@ -12,17 +12,14 @@ export const TRANSCRIPTION_KEYWORDS = [
   "dermatologs",
   "ginekologs",
   "otolaringologs",
-  "кардиолог",
-  "невролог",
-  "дерматолог",
-  "гинеколог",
 ] as const;
 
 export function buildRealtimeInputAudioConfig() {
   return {
     transcription: {
       model: "gpt-live-transcribe",
-      prompt: `The speaker may switch between Latvian and Russian. Preserve the spoken language. This is a healthcare appointment conversation in Ventspils, Latvia. Expected terms: ${TRANSCRIPTION_KEYWORDS.join(
+      language: "lv",
+      prompt: `The speaker uses Latvian. Preserve Latvian spelling and diacritics. This is a healthcare appointment conversation in Ventspils, Latvia. Expected terms: ${TRANSCRIPTION_KEYWORDS.join(
         ", "
       )}.`,
     },

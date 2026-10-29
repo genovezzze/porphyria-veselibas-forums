@@ -5,12 +5,12 @@ import {
 } from "@/lib/realtime-audio";
 
 describe("realtime speech recognition", () => {
-  it("supports Latvian and Russian code-switching", () => {
+  it("is configured for Latvian medical speech", () => {
     expect(TRANSCRIPTION_KEYWORDS).toContain("Piearsta.lv");
-    expect(TRANSCRIPTION_KEYWORDS).toContain("кардиолог");
-    expect(buildRealtimeInputAudioConfig().transcription.prompt).toContain(
-      "Latvian and Russian"
-    );
+    const transcription = buildRealtimeInputAudioConfig().transcription;
+    expect(transcription.language).toBe("lv");
+    expect(transcription.prompt).toContain("uses Latvian");
+    expect(transcription.prompt).not.toContain("Russian");
   });
 
   it("uses live transcription and far-field noise reduction", () => {
