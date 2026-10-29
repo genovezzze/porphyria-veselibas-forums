@@ -33,6 +33,7 @@ export function VoicePanel() {
   // Accumulate transcript deltas per response/item before committing to chat.
   const partials = React.useRef<Record<string, { role: "user" | "assistant"; text: string }>>({});
   const handledCalls = React.useRef(new Set<string>());
+  const committedTranscripts = React.useRef(new Set<string>());
 
   const cleanup = React.useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -49,6 +50,7 @@ export function VoicePanel() {
     streamRef.current = null;
     partials.current = {};
     handledCalls.current.clear();
+    committedTranscripts.current.clear();
   }, []);
 
   const endConversation = React.useCallback(() => {
@@ -59,9 +61,14 @@ export function VoicePanel() {
   React.useEffect(() => () => cleanup(), [cleanup]);
 
   function commitPartial(id: string) {
+    if (committedTranscripts.current.has(id)) {
+      delete partials.current[id];
+      return;
+    }
     const p = partials.current[id];
     if (p && p.text.trim()) {
       addMessage({ role: p.role, content: p.text.trim(), channel: "voice" });
+      committedTranscripts.current.add(id);
     }
     delete partials.current[id];
   }

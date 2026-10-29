@@ -13,4 +13,13 @@ describe("booking conversation order", () => {
       "Nekad nejautā atrašanās vietu, pirms nav saprasta problēma"
     );
   });
+
+  it("continues toward booking when a family doctor already issued a referral", () => {
+    const prompt = buildSystemPrompt();
+
+    expect(prompt).toContain("JA ĢIMENES ĀRSTS JAU IR IZRAKSTĪJIS NOSŪTĪJUMU");
+    expect(prompt).toContain("Nesūti lietotāju meklēt citu ārstu");
+    expect(prompt).toContain("Vai vēlies, lai palīdzu atrast pieraksta laiku?");
+    expect(prompt).toContain("Google Calendar un Piearsta.lv");
+  });
 });
