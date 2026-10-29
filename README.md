@@ -2,7 +2,7 @@
 
 A demo web platform for Veselības forums (Pauls Jansons challenge). A person comes
 to the site themselves, talks through their hesitation about a preventive
-**screening** — by voice or text — understands the next step, and finds a sample
+**screening**, by voice or text, understands the next step, and finds a sample
 appointment time that fits their schedule.
 
 > **Everything shown is a prototype with fictional sample data.** The AI screening
@@ -14,17 +14,17 @@ The working name **Personalizēts balss aģents** and the demo city **Riga** are
 
 ## What's implemented
 
-- **Landing page** — "Your next step, at your pace", How-it-works, honest disclaimer, no sign-up.
+- **Landing page**: "Your next step, at your pace", How-it-works, honest disclaimer, no sign-up.
 - **Cabinet** (`/demo`) with tabs: Conversation, Options, My plan, Demo calendar; "Demo · Sample data" marker; **Reset demo**.
 - **Text chat** against a server route that uses OpenAI with **tool-calling** when `OPENAI_API_KEY` is set, and a clearly-labeled **scripted fallback** when it isn't.
 - **Real voice** via the **OpenAI Realtime API over WebRTC**: the persistent key stays server-side; the browser gets a short-lived client secret from `/api/realtime/session`. Male voice id is configurable. States: Microphone off / Connecting / Listening / Speaking / Connection lost / Voice unavailable. Ending a call closes the connection, stops all mic tracks, and caps session length. Voice turns appear in the chat history (transcripts are approximate).
-- **Deterministic slot matching** (`lib/slots.ts`): no overlap with busy time, travel-time buffer, preferred weekday + part of day, Europe/Riga dates, UI weekday always matches the date. The AI never invents slots or prices — it only calls server tools over fixed fixtures, and all tool arguments are validated with zod.
-- **My plan** — save / view / remove, "I have booked" is only set on explicit confirmation (never from opening a link), explicitly-fake booking hand-off that sends no data and creates no record.
-- **Demo calendar** — sample week with busy blocks and free windows; change availability (Morning / Afternoon / After work / Any time) and options update.
-- **Google Calendar availability** — optional OAuth connection inside the cabinet. The app requests only the `calendar.freebusy` scope, imports busy intervals without event titles, and never creates or changes events.
-- **Browser-local demo mode** — state lives in this browser only (localStorage), clearly not a connected database.
-- **Guardrails** — input validation, message-size and count limits, chat + voice rate limiting, session-length cap, origin checks on API routes, server-side tool validation, no secrets in client code, emergency-signal handoff.
-- **Tests** — unit tests for interval matching and tool-argument handling (`__tests__/`).
+- **Deterministic slot matching** (`lib/slots.ts`): no overlap with busy time, travel-time buffer, preferred weekday + part of day, Europe/Riga dates, UI weekday always matches the date. The AI never invents slots or prices. It only calls server tools over fixed fixtures, and all tool arguments are validated with zod.
+- **My plan**: save / view / remove, "I have booked" is only set on explicit confirmation (never from opening a link), explicitly-fake booking hand-off that sends no data and creates no record.
+- **Demo calendar**: sample week with busy blocks and free windows; change availability (Morning / Afternoon / After work / Any time) and options update.
+- **Google Calendar availability**: optional OAuth connection inside the cabinet. The app requests only the `calendar.freebusy` scope, imports busy intervals without event titles, and never creates or changes events.
+- **Browser-local demo mode**: state lives in this browser only (localStorage), clearly not a connected database.
+- **Guardrails**: input validation, message-size and count limits, chat + voice rate limiting, session-length cap, origin checks on API routes, server-side tool validation, no secrets in client code, emergency-signal handoff.
+- **Tests**: unit tests for interval matching and tool-argument handling (`__tests__/`).
 
 ## Run locally
 
@@ -52,7 +52,7 @@ Set in `.env.local` (never commit; never use `NEXT_PUBLIC_` for secrets):
 | `OPENAI_TEXT_MODEL` | Text chat | Default `gpt-4o-mini`. |
 | `OPENAI_REALTIME_MODEL` | Voice | Default `gpt-4o-realtime-preview`. Verify against current OpenAI docs. |
 | `OPENAI_REALTIME_VOICE` | Voice | Default `ash` (male-leaning). Verify availability. |
-| `DATABASE_URL` | Neon (optional) | Not yet wired — see below. |
+| `DATABASE_URL` | Neon (optional) | Not yet wired. See below. |
 | `GOOGLE_CLIENT_ID` | Google Calendar OAuth | Server-only OAuth web client id. |
 | `GOOGLE_CLIENT_SECRET` | Google Calendar OAuth | Server-only OAuth client secret. |
 | `GOOGLE_REDIRECT_URI` | Google Calendar OAuth | Exact registered callback, for example `http://localhost:3000/api/google-calendar/callback`. |

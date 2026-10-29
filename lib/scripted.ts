@@ -4,7 +4,7 @@ import { URGENT_SIGNALS, URGENT_MESSAGE } from "./reference-content";
 import { REFERENCE_NOTES } from "./reference-content";
 
 // A deterministic, rule-based assistant used when OPENAI_API_KEY is not set.
-// It is intentionally simple and clearly labeled in the UI as a scripted demo —
+// It is intentionally simple and clearly labeled in the UI as a scripted demo.
 // it is NOT presented as the real AI.
 
 export interface ScriptedTurn {

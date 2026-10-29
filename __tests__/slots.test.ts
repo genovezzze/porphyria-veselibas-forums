@@ -17,7 +17,7 @@ describe("overlaps", () => {
   });
 });
 
-describe("findDemoSlots — time of day", () => {
+describe("findDemoSlots: time of day", () => {
   it("after-work returns only evening slots", () => {
     const res = findDemoSlots(slots, busy, { ...base, timeOfDay: "after-work" });
     expect(res.length).toBeGreaterThan(0);
@@ -34,7 +34,7 @@ describe("findDemoSlots — time of day", () => {
   });
 });
 
-describe("findDemoSlots — busy exclusion", () => {
+describe("findDemoSlots: busy exclusion", () => {
   it("never returns a slot that conflicts with a busy interval", () => {
     const res = findDemoSlots(slots, busy, base);
     for (const o of res) {
@@ -53,7 +53,7 @@ describe("findDemoSlots — busy exclusion", () => {
   });
 });
 
-describe("findDemoSlots — Friday morning changes results", () => {
+describe("findDemoSlots: Friday morning changes results", () => {
   it("returns friday morning options distinct from after-work", () => {
     const friMorning = findDemoSlots(slots, busy, {
       ...base,

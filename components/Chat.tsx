@@ -66,7 +66,7 @@ export function Chat({ onOptions }: { onOptions: () => void }) {
       demo.addMessage({
         role: "assistant",
         channel: "text",
-        content: `Labdien, ${demo.referral.patientName}! Tavs ${demo.referral.issuedBy} ir izrakstījis nosūtījumu uz ${demo.referral.examination}. Es varu palīdzēt sagatavot pierakstu. Kas tevi visvairāk satrauc — pati pārbaude, iespējamais rezultāts vai laika atrašana?`,
+        content: `Labdien, ${demo.referral.patientName}! Tavs ${demo.referral.issuedBy} ir izrakstījis nosūtījumu uz ${demo.referral.examination}. Es varu palīdzēt sagatavot pierakstu. Kas tevi visvairāk satrauc: pati pārbaude, iespējamais rezultāts vai laika atrašana?`,
       });
       demo.setReferralStatus("contacted");
       demo.setBookingStage("concern_identification");

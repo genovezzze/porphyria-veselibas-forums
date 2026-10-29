@@ -20,7 +20,7 @@ html {
 
 body {
   font-family: var(--font-sans);
-  font-synthesis: none; /* no faux bold — always the real Medium cut */
+  font-synthesis: none; /* no faux bold, always the real Medium cut */
   background-color: #ffffff;
   color: #111111;
   font-size: 18px;

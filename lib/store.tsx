@@ -16,7 +16,7 @@ import { buildDemoSlots } from "./fixtures";
 import { findDemoSlots, decorate } from "./slots";
 import { rigaToday } from "./date";
 
-// Browser-local demo mode. This is NOT a connected database — it is clearly
+// Browser-local demo mode. This is NOT a connected database. It is clearly
 // labeled as sample data held only in this browser session.
 
 export interface ChatMessage {

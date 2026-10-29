@@ -215,7 +215,7 @@ export function VoicePanel() {
       const ephemeralKey: string = session.client_secret?.value;
       const maxSeconds: number = session.maxSessionSeconds ?? 300;
 
-      // 2. Microphone — explicit user-initiated getUserMedia.
+      // 2. Microphone, explicit user-initiated getUserMedia.
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({

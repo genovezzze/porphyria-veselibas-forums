@@ -1,4 +1,4 @@
--- Next Step — optional Neon PostgreSQL schema (demo only).
+-- Next Step, optional Neon PostgreSQL schema (demo only).
 --
 -- This schema is intentionally NOT wired into the running app yet: without real
 -- authentication we do NOT store medical profiles in a shared database. The app

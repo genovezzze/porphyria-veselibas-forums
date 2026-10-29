@@ -34,8 +34,8 @@ export function overlaps(a: Interval, b: Interval): boolean {
 }
 
 /**
- * A slot conflicts with the calendar if the slot — padded by travel time on
- * both sides — overlaps any busy interval. Travel buffer is the max of the
+ * A slot conflicts with the calendar if the slot, padded by travel time on
+ * both sides, overlaps any busy interval. Travel buffer is the max of the
  * slot's own example travel minutes and a default allowance.
  */
 export function slotConflictsWithBusy(
@@ -78,7 +78,7 @@ export function decorate(slot: DemoSlot): MatchedOption | null {
 
 /**
  * Core matching: slots that fit the preferences and do not conflict with the
- * calendar, sorted chronologically. The AI never invents slots — it only calls
+ * calendar, sorted chronologically. The AI never invents slots. It only calls
  * this over the fixed fixture set.
  */
 export function findDemoSlots(

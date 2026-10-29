@@ -34,7 +34,7 @@ export interface DemoCenter {
   address: string;
   priceEur: number | null; // null = not applicable / free
   conditions: string;
-  source: string; // provenance label — always flagged as sample data
+  source: string; // provenance label, always flagged as sample data
 }
 
 // A concrete offerable appointment slot (demo/fixture data).
@@ -44,7 +44,7 @@ export interface DemoSlot {
   // ISO start/end in Europe/Riga local wall-clock, stored as "YYYY-MM-DDTHH:mm".
   start: string;
   end: string;
-  // Example travel time in minutes — explicitly a sample, not a real estimate.
+  // Example travel time in minutes, explicitly a sample, not a real estimate.
   travelMinutes: number;
 }
 

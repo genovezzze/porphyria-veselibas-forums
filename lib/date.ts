@@ -69,7 +69,7 @@ export function minutesSinceEpochLocal(iso: string): number {
   const [date, time] = iso.split("T");
   const [y, mo, d] = date.split("-").map(Number);
   const [h, mi] = time.split(":").map(Number);
-  // Days since a fixed epoch via UTC math (no tz offset applied — wall clock).
+  // Days since a fixed epoch via UTC math (no tz offset applied, wall clock).
   const days = Math.floor(Date.UTC(y, mo - 1, d) / 86400000);
   return days * 24 * 60 + h * 60 + mi;
 }
