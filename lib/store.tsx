@@ -55,7 +55,7 @@ function initialState(): DemoState {
     careMatches: [],
     referral: {
       id: "ref-mammography-2026",
-      patientName: "Anna Bērziņa",
+      patientName: "markosss",
       examination: "mamogrāfijas skrīnings",
       city: "Ventspils",
       issuedBy: "ģimenes ārsts",
@@ -117,6 +117,11 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           setState({
             ...fresh,
             ...parsed,
+            referral: {
+              ...fresh.referral,
+              ...parsed.referral,
+              patientName: fresh.referral.patientName,
+            },
             busy: [],
             calendarConnected: false,
             careMatches: [],
