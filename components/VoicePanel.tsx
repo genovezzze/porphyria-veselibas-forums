@@ -198,7 +198,14 @@ export function VoicePanel() {
       // 2. Microphone — explicit user-initiated getUserMedia.
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+          },
+        });
       } catch {
         setState("unavailable");
         setError(

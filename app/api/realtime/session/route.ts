@@ -3,6 +3,7 @@ import { buildSystemPrompt } from "@/lib/agent";
 import { VOICE_ID, LIMITS } from "@/lib/config";
 import { rateLimit, clientKey, checkOrigin } from "@/lib/rate-limit";
 import { REALTIME_TOOL_DEFS } from "@/lib/tools";
+import { buildRealtimeInputAudioConfig } from "@/lib/realtime-audio";
 
 export const runtime = "nodejs";
 
@@ -54,13 +55,7 @@ export async function POST(req: Request) {
           instructions: buildSystemPrompt(),
           audio: {
             // Transcribe the user's speech too, so their turns show in the chat.
-            input: {
-              transcription: {
-                model:
-                  process.env.OPENAI_TRANSCRIBE_MODEL?.trim() || "gpt-4o-transcribe",
-                language: "lv",
-              },
-            },
+            input: buildRealtimeInputAudioConfig(),
             output: { voice: VOICE_ID },
           },
           max_output_tokens: 400,
@@ -71,7 +66,13 @@ export async function POST(req: Request) {
     });
 
     if (!res.ok) {
-      console.error("realtime: session mint failed", res.status);
+      const errorBody = await res.json().catch(() => ({}));
+      console.error(
+        "realtime: session mint failed",
+        res.status,
+        errorBody?.error?.code || "unknown",
+        errorBody?.error?.param || "unknown"
+      );
       return NextResponse.json(
         { error: "voice_unavailable", detail: "Could not start a voice session." },
         { status: 502 }
