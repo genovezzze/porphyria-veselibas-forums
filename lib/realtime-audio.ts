@@ -3,6 +3,15 @@ export const TRANSCRIPTION_KEYWORDS = [
   "pieraksts",
   "pierakstīties",
   "ārsts",
+  "ģimenes ārsts",
+  "nosūtījums",
+  "skrīnings",
+  "mamogrāfija",
+  "mamogrāfijas skrīnings",
+  "pārbaude",
+  "izmeklējums",
+  "rezultāti",
+  "šaubos",
   "Ventspils",
   "Google Calendar",
   "poliklīnika",
@@ -18,17 +27,23 @@ export function buildRealtimeInputAudioConfig() {
   return {
     transcription: {
       model: "gpt-live-transcribe",
-      language: "lv",
-      prompt: `The speaker uses Latvian. Preserve Latvian spelling and diacritics. This is a healthcare appointment conversation in Ventspils, Latvia. Expected terms: ${TRANSCRIPTION_KEYWORDS.join(
-        ", "
-      )}.`,
+      languages: ["lv"],
+      prompt:
+        "Saruna latviešu valodā par veselības pārbaudi, nosūtījumu un pierakstu pie ārsta Ventspilī.",
+      keywords: [...TRANSCRIPTION_KEYWORDS],
     },
-    noise_reduction: { type: "far_field" as const },
+    noise_reduction: { type: "near_field" as const },
     turn_detection: {
       type: "server_vad" as const,
       threshold: 0.4,
-      prefix_padding_ms: 500,
-      silence_duration_ms: 800,
+      prefix_padding_ms: 700,
+      silence_duration_ms: 1100,
     },
   };
+}
+
+export function isAcceptableLatvianTranscript(text: string) {
+  const normalized = text.trim();
+  if (!normalized) return false;
+  return !/[\u0400-\u04ff]/u.test(normalized);
 }

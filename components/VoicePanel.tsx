@@ -5,6 +5,7 @@ import { Mic, MicOff, PhoneOff, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VoiceOrb, type VoiceState } from "./VoiceOrb";
 import { useDemo } from "@/lib/store";
+import { isAcceptableLatvianTranscript } from "@/lib/realtime-audio";
 
 // Real OpenAI Realtime voice via WebRTC. The persistent API key stays on the
 // server; we fetch a short-lived client secret from /api/realtime/session and
@@ -149,8 +150,14 @@ export function VoicePanel() {
       case "conversation.item.input_audio_transcription.completed": {
         const text = (evt.transcript || "").trim();
         const id = "voice-" + (evt.item_id || crypto.randomUUID());
-        if (text) upsertMessage({ id, role: "user", content: text, channel: "voice" });
-        else removeMessage(id);
+        if (isAcceptableLatvianTranscript(text)) {
+          // Store the final input transcript exactly as returned. Do not
+          // translate, summarize or rewrite the user's words.
+          upsertMessage({ id, role: "user", content: text, channel: "voice" });
+        } else {
+          removeMessage(id);
+          setError("Runu neizdevās precīzi atpazīt latviski. Lūdzu, atkārto lēnāk.");
+        }
         break;
       }
       case "conversation.item.input_audio_transcription.failed":
